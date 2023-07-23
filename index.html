@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>PropertyStorage.Web3</title>
+    <style>
+        /* Estilos ... */
+    </style>
+</head>
+<body>
+    <header>
+        <h1>$Siuuuu$
+            <span>PropertyStorage.Web3</span>
+        </h1>
+    </header>
+    <form id="upload-form">
+        <label for="token">Paste your web3.storage API token here</label>
+        <input type="password" id="token" required />
+        <label>Pick files to store</label>
+        <input type="file" id="filepicker" name="fileList" multiple required />
+        <input type="submit" value="Submit" id="submit" />
+    </form>
+    <div id="output"></div>
+    <script type="module">
+        import { Web3Storage } from 'https://cdn.jsdelivr.net/npm/web3.storage/dist/bundle.esm.min.js'
+
+        const form = document.querySelector('#upload-form')
+        const filepicker = document.querySelector('#filepicker')
+        const tokenInput = document.querySelector('#token')
+        const output = document.querySelector('#output')
+
+        showMessage('> ⁂ waiting for form submission...')
+
+        form.addEventListener('submit', async function (event) {
+            // don't reload the page!
+            event.preventDefault()
+
+            showMessage('> 📦 creating web3.storage client')
+            const token = tokenInput.value
+            const client = new Web3Storage({ token })
+
+            showMessage('> 🤖 chunking and hashing the files (in your browser!) to calculate the Content ID')
+            const files = filepicker.files
+            const hash = await calculateSHA256Hash(files[0]);
+            showMessage(`> 🔑 SHA-256 Hash: ${hash}`);
+
+            const cid = await client.put(files, {
+                onRootCidReady: (localCid) => {
+                    showMessage(`> 🔑 locally calculated Content ID: ${localCid}`)
+                    showMessage('> 📡 sending files to web3.storage ')
+                },
+                onStoredChunk: (bytes) => showMessage(`> 🛰 sent ${bytes.toLocaleString()} bytes to web3.storage`)
+            })
+            showMessage(`> ✅ web3.storage now hosting ${cid}`)
+            showLink(`https://dweb.link/ipfs/${cid}`)
+        }, false)
+
+        async function calculateSHA256Hash(file) {
+            const buffer = await file.arrayBuffer();
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+            return hashHex;
+        }
+
+        function showMessage(text) {
+            const node = document.createElement('div')
+            node.innerText = text
+            output.appendChild(node)
+        }
+
+        function showLink(url) {
+            const node = document.createElement('a')
+            node.href = url
+            node.innerText = `> 🔗 ${url}`
+            output.appendChild(node)
+        }
+    </script>
+</body>
+</html>
